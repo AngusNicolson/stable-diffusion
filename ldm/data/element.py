@@ -1,22 +1,13 @@
-
 import itertools
 
 from elements.classes import ElementDataset
 
 
 class Element(ElementDataset):
-    def __init__(self, dataset_name, n, img_size=256, element_n=4, element_size=64, element_size_delta=16, element_seed=42, loc_seed=123):
-        class_configs, allowed = select_dataset(dataset_name)
+    def __init__(self, dataset_name, **kwargs):
+        class_configs, allowed, allowed_combinations = select_dataset(dataset_name)
         super().__init__(
-            allowed,
-            class_configs,
-            n,
-            img_size,
-            element_n,
-            element_size,
-            element_size_delta,
-            element_seed,
-            loc_seed
+            allowed, class_configs, allowed_combinations=allowed_combinations, **kwargs
         )
 
     def __getitem__(self, idx):
@@ -26,6 +17,13 @@ class Element(ElementDataset):
 
 
 def select_dataset(name):
+    # By default, allow all combinations of shape, color, texture in the dataset
+    # and the "simple" set of concepts
+    allowed_combinations = None
+    allowed_shapes = ["square", "circle", "triangle", "plus"]
+    allowed_colors = ["red", "green", "blue"]
+    allowed_textures = ["solid", "spots_polka", "stripes_diagonal"]
+
     if name == "simple":
         class_configs = [
             {"shape": None, "color": None, "texture": "solid"},
@@ -41,25 +39,36 @@ def select_dataset(name):
             {"shape": "square", "color": "green", "texture": "spots_polka"},
             {"shape": "plus", "color": "magenta", "texture": "spots_polka"},
         ]
-
-        allowed_shapes = ['square', 'circle', 'triangle', 'plus']
-        allowed_colors = ['red', 'green', 'blue', 'magenta']
-        allowed_textures = ["solid", "spots_polka", "stripes_diagonal"]
     elif name == "simple_all":
-        allowed_shapes = ['square', 'circle', 'triangle', 'plus']
-        allowed_colors = ['red', 'green', 'blue']
-        allowed_textures = ["solid", "spots_polka", "stripes_diagonal"]
+        class_configs = select_all_combinations_of_classes(
+            allowed_shapes, allowed_colors, allowed_textures
+        )
 
-        allowed_config = [
-            v + [None] for v in [allowed_shapes, allowed_colors, allowed_textures]
-        ]
-        class_configs = list(itertools.product(*allowed_config))
+    elif name == "simple_all_non_overlapping":
+        class_configs = select_all_combinations_of_classes(
+            allowed_shapes, allowed_colors, allowed_textures
+        )
 
-        class_configs = [
-            v for v in class_configs if sum([in_v is None for in_v in v]) < 2
+        # Restrict some combinations of concepts from appearing in the dataset
+        restrictions = [
+            (None, "red", "stripes_diagonal"),
+            ("triangle", "green", None),
+            ("plus", None, "spots_polka"),
+            ("circle", None, "solid"),
         ]
+        allowed_combinations = list(
+            itertools.product(allowed_shapes, allowed_colors, allowed_textures)
+        )
+        allowed_combinations = remove_matching_items(allowed_combinations, restrictions)
+
+        # Remove classes which will no longer appear
+        class_configs_tuples = [
+            tuple([in_v for in_v in v.values()]) for v in class_configs
+        ]
+        class_configs_tuples = remove_matching_items(class_configs_tuples, restrictions)
         class_configs = [
-            {"shape": v[0], "color": v[1], "texture": v[2]} for v in class_configs
+            {"shape": v[0], "color": v[1], "texture": v[2]}
+            for v in class_configs_tuples
         ]
     else:
         raise ValueError(f"Dataset name not recognised: {name}")
@@ -67,7 +76,35 @@ def select_dataset(name):
     allowed = {
         "shapes": allowed_shapes,
         "colors": allowed_colors,
-        "textures": allowed_textures
+        "textures": allowed_textures,
     }
 
-    return class_configs, allowed
+    return class_configs, allowed, allowed_combinations
+
+
+def select_all_combinations_of_classes(
+    allowed_shapes, allowed_colors, allowed_textures
+):
+    allowed_config = [
+        v + [None] for v in [allowed_shapes, allowed_colors, allowed_textures]
+    ]
+    class_configs = list(itertools.product(*allowed_config))
+
+    class_configs = [v for v in class_configs if sum([in_v is None for in_v in v]) < 2]
+    class_configs = [
+        {"shape": v[0], "color": v[1], "texture": v[2]} for v in class_configs
+    ]
+    return class_configs
+
+
+def remove_matching_items(combinations, restrictions):
+    filtered_arr = []
+    for combo in combinations:
+        match_found = False
+        for restriction in restrictions:
+            if all(x is None or x == y for x, y in zip(restriction, combo)):
+                match_found = True
+                break
+        if not match_found:
+            filtered_arr.append(combo)
+    return filtered_arr

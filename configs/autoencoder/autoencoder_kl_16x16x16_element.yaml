@@ -7,7 +7,7 @@ model:
     lossconfig:
       target: ldm.modules.losses.LPIPSWithDiscriminator
       params:
-        disc_start: 50001
+        disc_start: 30001
         kl_weight: 0.000001
         disc_weight: 0.5
 
@@ -32,19 +32,25 @@ data:
     train:
       target: ldm.data.element.Element
       params:
-        dataset_name: "simple_all"
+        dataset_name: "simple_all_non_overlapping"
         n: 5000
         img_size: 256
         element_seed: 42
         loc_seed: 123
+        element_n: 4
+        element_size: 64
+        element_size_delta: 16
     validation:
       target: ldm.data.element.Element
       params:
-        dataset_name: "simple_all"
+        dataset_name: "simple_all_non_overlapping"
         n: 500
         img_size: 256
         element_seed: 43
         loc_seed: 124
+        element_n: 4
+        element_size: 64
+        element_size_delta: 16
 
 lightning:
   callbacks:
