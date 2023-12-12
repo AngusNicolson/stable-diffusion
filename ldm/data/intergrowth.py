@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as T
 
+
 class IntergrowthDataset(Dataset):
     """Intergrowth dataset"""
 
@@ -66,7 +67,7 @@ class IntergrowthDataset(Dataset):
     @staticmethod
     def load_img_(path):
         img = Image.open(path)
-        img = np.array(img).astype("float32") / 255
+        img = np.array(img).astype("float32") / 127.5 - 1.0
         img = IntergrowthDataset.expand_img(img)
         return img
 
