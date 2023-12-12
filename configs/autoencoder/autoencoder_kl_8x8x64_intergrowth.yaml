@@ -31,13 +31,13 @@ data:
     train:
       target: ldm.data.intergrowth.IntergrowthDatasetTrain
       params:
-        json_file: "/home/lina3782/labs/explain/intergrowth/source_jsons/metadata.json"
+        json_file: "/home/lina3782/labs/explain/intergrowth/data/metadata_shuffled.json"
         prefix: "/home/lina3782/data00/intergrowth/256/"
         size: 256
     validation:
       target: ldm.data.intergrowth.IntergrowthDatasetVal
       params:
-        json_file: "/home/lina3782/labs/explain/intergrowth/source_jsons/metadata.json"
+        json_file: "/home/lina3782/labs/explain/intergrowth/data/metadata_shuffled.json"
         prefix: "/home/lina3782/data00/intergrowth/256/"
         size: 256
 
