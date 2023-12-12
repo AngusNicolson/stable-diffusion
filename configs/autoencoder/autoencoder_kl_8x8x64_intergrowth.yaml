@@ -29,19 +29,17 @@ data:
     batch_size: 2
     wrap: True
     train:
-      target: ldm.data.intergrowth.IntergrowthDataset
+      target: ldm.data.intergrowth.IntergrowthDatasetTrain
       params:
         json_file: "/home/lina3782/labs/explain/intergrowth/source_jsons/metadata.json"
         prefix: "/home/lina3782/data00/intergrowth/256/"
         size: 256
-        split: "train"
     validation:
-      target: ldm.data.intergrowth.IntergrowthDataset
+      target: ldm.data.intergrowth.IntergrowthDatasetVal
       params:
         json_file: "/home/lina3782/labs/explain/intergrowth/source_jsons/metadata.json"
         prefix: "/home/lina3782/data00/intergrowth/256/"
         size: 256
-        split: "val"
 
 lightning:
   callbacks:

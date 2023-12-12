@@ -77,3 +77,21 @@ class IntergrowthDataset(Dataset):
         img = np.repeat(img, repeats=3, axis=-1)
         img = torch.from_numpy(img)
         return img
+
+
+class IntergrowthDatasetTrain(IntergrowthDataset):
+    def __init__(self, json_file, size=256, min_crop_f=0.5, max_crop_f=1.0, **kwargs):
+        self.min_crop_f = min_crop_f
+        self.max_crop_f = max_crop_f
+        assert(max_crop_f <= 1.)
+
+        if min_crop_f == 1:
+            transform = None
+        else:
+            transform = T.RandomResizedCrop(size, (min_crop_f, max_crop_f))
+        super().__init__(json_file, split="train", size=size, transform=transform, **kwargs)
+
+
+class IntergrowthDatasetVal(IntergrowthDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, split="val", **kwargs)
