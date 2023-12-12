@@ -8,13 +8,14 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-import torchvision.transforms as T
+import cv2
+import albumentations
 
 
 class IntergrowthDataset(Dataset):
     """Intergrowth dataset"""
 
-    def __init__(self, json_file: Union[str, dict], split: str = "train", prefix: str = None, transform=None, load_img=True, size=256):
+    def __init__(self, json_file: Union[str, dict], split: str = "train", prefix: str = None, transform=None, load_img=True, size=256, downscale_f=4, min_crop_f=0.5, max_crop_f=1.0):
         """
         Args:
             json_file (string): Path to the json metadata file.
@@ -27,6 +28,26 @@ class IntergrowthDataset(Dataset):
         self.transform = transform
         self.metadata_labels = ["age_label"]
         self.size = size
+        self.downscale_f = downscale_f
+        assert (size / downscale_f).is_integer()
+        self.lr_size = int(size / downscale_f)
+        self.image_rescaler = albumentations.SmallestMaxSize(
+            max_size=size,
+            interpolation=cv2.INTER_AREA
+        )
+
+        self.degradation_process = albumentations.SmallestMaxSize(
+            max_size=self.lr_size,
+            interpolation=cv2.INTER_AREA,
+        )
+
+        self.min_crop_f = min_crop_f
+        self.max_crop_f = max_crop_f
+        assert (max_crop_f <= 1.)
+        self.crop_fn = albumentations.RandomResizedCrop(
+            size, size,
+            (min_crop_f, max_crop_f)
+        )
 
         if type(json_file) == dict:
             self.metadata = deepcopy(json_file)
@@ -53,12 +74,15 @@ class IntergrowthDataset(Dataset):
         pid_metadata = self.metadata[self.ids[idx]]
         if self.load_img:
             img = self.load_img_(pid_metadata["path"])
+            img = self.image_rescaler(image=img)["image"]
             if self.transform is not None:
                 img = self.transform(img)
+            lr_img = self.degradation_process(image=img)["image"]
         else:
             img = None
+            lr_img = None
 
-        sample = {"id": self.ids[idx], "image": img}
+        sample = {"id": self.ids[idx], "image": img, "LR_image": lr_img}
         sample[0] = sample["image"]
         sample.update({k: pid_metadata[k] for k in self.metadata_labels})
         sample[1] = sample["age_label"]
@@ -67,31 +91,26 @@ class IntergrowthDataset(Dataset):
     @staticmethod
     def load_img_(path):
         img = Image.open(path)
+        img = img.convert("RGB")
         img = np.array(img).astype("float32") / 127.5 - 1.0
-        img = IntergrowthDataset.expand_img(img)
-        return img
-
-    @staticmethod
-    def expand_img(img):
-        img = np.expand_dims(img, -1)
-        img = np.repeat(img, repeats=3, axis=-1)
-        img = torch.from_numpy(img)
         return img
 
 
 class IntergrowthDatasetTrain(IntergrowthDataset):
-    def __init__(self, json_file, size=256, min_crop_f=0.5, max_crop_f=1.0, **kwargs):
-        self.min_crop_f = min_crop_f
-        self.max_crop_f = max_crop_f
-        assert(max_crop_f <= 1.)
-
-        if min_crop_f == 1:
-            transform = None
-        else:
-            transform = T.RandomResizedCrop(size, (min_crop_f, max_crop_f))
-        super().__init__(json_file, split="train", size=size, transform=transform, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            *args,
+            split="train",
+            **kwargs,
+        )
 
 
 class IntergrowthDatasetVal(IntergrowthDataset):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, split="val", **kwargs)
+    def __init__(self, *args, min_crop_f=1.0, max_crop_f=1.0, **kwargs):
+        super().__init__(
+            *args,
+            split="val",
+            min_crop_f=min_crop_f,
+            max_crop_f=max_crop_f,
+            **kwargs,
+        )
