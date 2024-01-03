@@ -15,7 +15,7 @@ import albumentations
 class IntergrowthDataset(Dataset):
     """Intergrowth dataset"""
 
-    def __init__(self, json_file: Union[str, dict], split: str = "train", prefix: str = None, transform=None, load_img=True, size=256, downscale_f=4, min_crop_f=0.5, max_crop_f=1.0):
+    def __init__(self, json_file: Union[str, dict], split: str = "train", prefix: str = None, transform=None, load_img=True, size=256, downscale_f=4, min_crop_f=0.5, max_crop_f=1.0, metadata_labels=("age_label",)):
         """
         Args:
             json_file (string): Path to the json metadata file.
@@ -26,7 +26,7 @@ class IntergrowthDataset(Dataset):
         self.split = split
         self.load_img = load_img
         self.transform = transform
-        self.metadata_labels = ["age_label"]
+        self.metadata_labels = metadata_labels
         self.size = size
         self.downscale_f = downscale_f
         assert (size / downscale_f).is_integer()
@@ -75,6 +75,7 @@ class IntergrowthDataset(Dataset):
         if self.load_img:
             img = self.load_img_(pid_metadata["path"])
             img = self.image_rescaler(image=img)["image"]
+            img = self.crop_fn(image=img)["image"]
             if self.transform is not None:
                 img = self.transform(img)
             lr_img = self.degradation_process(image=img)["image"]
