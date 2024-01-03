@@ -1,0 +1,92 @@
+model:
+  base_learning_rate: 1.0e-05
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  params:
+    linear_start: 0.0015
+    linear_end: 0.0195
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    first_stage_key: image
+    conditioning_key: crossattn
+    cond_stage_key: class_label
+    cond_stage_trainable: true
+    image_size: 64
+    channels: 3
+    monitor: val/loss_simple_ema
+
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 64
+        in_channels: 3
+        out_channels: 3
+        model_channels: 224
+        attention_resolutions: [8, 4, 2]
+        # note: this isn\t actually the resolution but
+        # the downsampling factor, i.e. this corresnponds to
+        # attention on spatial resolution 8,16,32, as the
+        # spatial reolution of the latents is 64 for f4
+        num_res_blocks: 2
+        channel_mult: [1, 2, 3, 4]
+        num_head_channels: 32
+        use_spatial_transformer: true
+        transformer_depth: 1
+        context_dim: 512
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        ckpt_path: logs/2023-12-12T16-02-28_autoencoder_kl_64x64x3_intergrowth/checkpoints/last.ckpt
+        embed_dim: 3
+        ddconfig:
+          double_z: True
+          z_channels: 3
+          resolution: 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult: [ 1,2,4 ]  # num_down = len(ch_mult)-1
+          num_res_blocks: 2
+          attn_resolutions: [ ]
+          dropout: 0.0
+        lossconfig:
+          target: torch.nn.Identity
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.ClassEmbedder
+      params:
+        n_classes: 5
+        embed_dim: 512
+        key: sylvian_shape_label
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 1
+    num_workers: 0
+    wrap: false
+    train:
+      target: ldm.data.intergrowth.IntergrowthDatasetTrain
+      params:
+        json_file: "/home/lina3782/labs/counterfactual/data/metadata_shuffled_01.json"
+        prefix: "/home/lina3782/data00/intergrowth/256/"
+        size: 256
+        metadata_labels: ["age_label", "sylvian_shape_label"]
+    validation:
+      target: ldm.data.intergrowth.IntergrowthDatasetVal
+      params:
+        json_file: "/home/lina3782/labs/counterfactual/data/metadata_shuffled_01.json"
+        prefix: "/home/lina3782/data00/intergrowth/256/"
+        size: 256
+        metadata_labels: ["age_label", "sylvian_shape_label"]
+
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 1000
+        max_images: 8
+        increase_log_steps: False
+
+  trainer:
+    benchmark: True
