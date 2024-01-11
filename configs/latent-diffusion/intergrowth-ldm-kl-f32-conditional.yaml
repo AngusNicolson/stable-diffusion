@@ -32,7 +32,7 @@ model:
         num_head_channels: 32
         use_spatial_transformer: true
         transformer_depth: 1
-        context_dim: 512
+        context_dim: 128
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
       params:
@@ -55,7 +55,7 @@ model:
       target: ldm.modules.encoders.modules.ClassEmbedder
       params:
         n_classes: 5
-        embed_dim: 512
+        embed_dim: 128
         key: sylvian_shape_label
 data:
   target: main.DataModuleFromConfig
@@ -87,6 +87,7 @@ lightning:
         batch_frequency: 1000
         max_images: 8
         increase_log_steps: False
+        log_on_batch_idx: True
 
   trainer:
     benchmark: True
